@@ -1,0 +1,182 @@
+---
+title: "A function to count missing values for all columns by group"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+
+
+
+``` r
+library(tidyverse)
+library(roxygen2)
+```
+
+```
+## Warning: package 'roxygen2' was built under R version 4.6.2
+```
+
+``` r
+library(testthat)
+library(palmerpenguins)
+```
+
+```
+## Warning: package 'palmerpenguins' was built under R version 4.6.2
+```
+
+## Function and Documentation
+
+
+``` r
+#' Count missing values for all columns by group
+#'
+#' @description Given a data frame `data` and a column `group_col`,
+#' `count_all_missing_by_group()` creates a new data frame with one row
+#' per level of `group_col`. The first column contains the levels of
+#' `group_col`, and the remaining columns contain the number of missing
+#' values for every other column in `data`.
+#'
+#' @details This function is a wrapper around the `group_by()` and
+#' `summarize()` functions in the `dplyr` package.
+#'
+#' @param data Data in data.frame or tibble format.
+#' @param group_col Column in `data` to group by.
+#' @param .groups (OPTIONAL) Controls whether the output data frame is
+#'   grouped. By default, drops all levels of grouping (`"drop"`). Specify
+#'   `"keep"` to keep the output data frame grouped by `group_col`.
+#'   See `dplyr::summarize()` documentation for a full list of options.
+#'
+#' @return A data frame or tibble with the levels of `group_col`, and the
+#'   number of NAs within each level of `group_col` for all other columns
+#'   in `data`.
+#'
+#' @export
+#'
+#' @examples
+#' count_all_missing_by_group(airquality, Month)
+#' airquality |> count_all_missing_by_group(Month)
+#' count_all_missing_by_group(airquality, Month, .groups = "keep")
+count_all_missing_by_group <- function(data, group_col, .groups = "drop") {
+
+  if (!is.null(.groups)) {
+    if (!(.groups %in% c("drop_last", "drop", "keep", "rowwise"))) {
+      stop('.groups must be one of NULL, "drop_last", "drop", "keep", or "rowwise".')
+    }
+  }
+
+  data |>
+    dplyr::group_by({{ group_col }}) |>
+    dplyr::summarize(
+      dplyr::across(dplyr::everything(), ~ sum(is.na(.x))),
+      .groups = .groups
+    )
+}
+```
+
+## Examples 
+
+This example computes the number of missing values in the `airquality` dataset grouped by the `cyl` column. 
+
+
+``` r
+count_all_missing_by_group(airquality, Month)
+```
+
+```
+## # A tibble: 5 × 6
+##   Month Ozone Solar.R  Wind  Temp   Day
+##   <int> <int>   <int> <int> <int> <int>
+## 1     5     5       4     0     0     0
+## 2     6    21       0     0     0     0
+## 3     7     5       0     0     0     0
+## 4     8     5       3     0     0     0
+## 5     9     1       0     0     0     0
+```
+
+This example has the same output as the last example, but shows off an alternative way of invoking the `count_all_missing_by_group()`: piping the dataset into the function. 
+
+
+``` r
+airquality |> count_all_missing_by_group(Month) 
+```
+
+```
+## # A tibble: 5 × 6
+##   Month Ozone Solar.R  Wind  Temp   Day
+##   <int> <int>   <int> <int> <int> <int>
+## 1     5     5       4     0     0     0
+## 2     6    21       0     0     0     0
+## 3     7     5       0     0     0     0
+## 4     8     5       3     0     0     0
+## 5     9     1       0     0     0     0
+```
+
+The optional `.groups` argument allows us to keep the output grouped by the grouping column. See example below; notice how the output is a grouped tibble, rather than the ungrouped tibble output of the earlier examples. 
+
+
+``` r
+count_all_missing_by_group(airquality, Month, .groups = "keep")
+```
+
+```
+## # A tibble: 5 × 6
+## # Groups:   Month [5]
+##   Month Ozone Solar.R  Wind  Temp   Day
+##   <int> <int>   <int> <int> <int> <int>
+## 1     5     5       4     0     0     0
+## 2     6    21       0     0     0     0
+## 3     7     5       0     0     0     0
+## 4     8     5       3     0     0     0
+## 5     9     1       0     0     0     0
+```
+
+
+## Tests 
+
+The first test checks whether the function gives the same result as directly calling `group_by()` and `summarize()`, whether the `.groups` optional input is used or not. 
+
+The second test checks the error handling for malformed `.groups` input arguments. We check that the valid input `NULL` doesn't throw an error because `NULL` can play havoc on badly written input checks. 
+
+
+``` r
+test_that("Output matches direct call to dplyr", { 
+  small_tbl <- tribble(~group, ~var1, ~var2, 
+                     "A", 1, NA, 
+                     "A", 2, "x", 
+                     "B", NA, "y", 
+                     "C", 3, "z")
+  
+  expect_equal( small_tbl |> group_by(group) |> 
+                summarize(across(everything(), ~sum(is.na(.x))), 
+                .groups = "drop"), 
+                count_all_missing_by_group(small_tbl, group)
+              )
+  
+  expect_equal( small_tbl |> group_by(group) |> 
+                summarize(across(everything(), ~sum(is.na(.x))), 
+                .groups = NULL), 
+                count_all_missing_by_group(small_tbl, group, NULL)
+              )
+})
+```
+
+```
+## Test passed with 2 successes 🥳.
+```
+
+``` r
+test_that("Checking error handling for .groups input", { 
+      expect_error(
+        count_all_missing_by_group(airquality, Month, "kep")
+      )
+      expect_no_error( 
+        count_all_missing_by_group(airquality, Month, NULL)
+      )
+  })
+```
+
+```
+## Test passed with 2 successes 🥳.
+```
