@@ -1,0 +1,15 @@
+Package: assignmentB2AndresOcampo
+Title: Count Missing Values for All Columns by Group
+Version: 0.1.0
+Authors@R: 
+    person("Andres", "Ocampo", , "andresocampo1228@gmail.com", role = c("aut", "cre"))
+Description: Provides count_all_missing_by_group(), a convenient wrapper
+    around dplyr::group_by() and dplyr::summarize() that returns the number
+    of missing values in every column of a data frame, broken down by a
+    grouping variable.
+License: MIT + file LICENSE
+Config/roxygen2/version: 8.1.1
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports: 
+    dplyr
